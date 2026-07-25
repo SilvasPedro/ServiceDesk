@@ -1,12 +1,13 @@
 import { motion } from 'framer-motion';
-import { Home, FileText, MapPin, Router, PlusCircle, MessageSquare, Layout, PanelBottom } from 'lucide-react';
+import { Home, FileText, MapPin, Router, Network, MessageSquare, Layout, PanelBottom, MonitorPlay } from 'lucide-react';
 
 const menuItems = [
   { id: 'index', name: 'Início', icon: Home },
   { id: 'os_geral', name: 'OS Geral', icon: FileText },
   { id: 'mud_endereco', name: 'Mudança de Endereço', icon: MapPin },
   { id: 'mud_comodo', name: 'Mudança de Cômodo', icon: Router },
-  { id: 'ponto_adicional', name: 'Ponto Adicional', icon: PlusCircle },
+  { id: 'ponto_adicional', name: 'Ponto Adicional', icon: Network },
+  { id: 'reparo_tv', name: 'Reparo TV', icon: MonitorPlay },
   { id: 'feedback', name: 'Feedback', icon: MessageSquare },
 ];
 

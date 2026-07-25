@@ -3,6 +3,11 @@ import { NavBar } from './components/NavBar';
 import { OsGeral } from './pages/OsGeral';
 import { MudEndereco } from './pages/MudEndereco';
 import { MudComodo } from './pages/MudComodo';
+import { PontoAdicional } from './pages/PontoAdicional';
+import { Feedback } from './pages/Feedback';
+import { ReparoTV } from './pages/ReparoTV';
+
+import { Inicio } from './pages/Inicio';
 
 function App() {
   const [paginaAtual, setPaginaAtual] = useState('os_geral');
@@ -18,13 +23,14 @@ function App() {
         return <OsGeral />;
       case 'mud_endereco':
         return <MudEndereco />;
+      case 'ponto_adicional':
+        return <PontoAdicional />;
+      case 'reparo_tv':
+        return <ReparoTV />;
+      case 'feedback':
+        return <Feedback />;
       case 'index':
-        return (
-          <div className="text-center mt-20 w-full">
-            <h2 className="text-3xl font-bold text-slate-800 mb-4">Bem-vindo ao Gerador</h2>
-            <p className="text-slate-500">Selecione uma opção no menu.</p>
-          </div>
-        );
+        return <Inicio />;
       default:
         return <div className="text-slate-600">Página em construção...</div>;
     }

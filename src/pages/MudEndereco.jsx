@@ -25,22 +25,20 @@ const initialState = {
 };
 
 export function MudEndereco() {
-  const [formData, setFormData] = useState(initialState);
-  const [toast, setToast] = useState(null);
-  const [showClearModal, setShowClearModal] = useState(false);
-  const [errorFields, setErrorFields] = useState([]);
-
-  // Carregar dados salvos
-  useEffect(() => {
+  const [formData, setFormData] = useState(() => {
     const saved = localStorage.getItem('osMudancaEndData');
     if (saved) {
       try {
-        setFormData(JSON.parse(saved));
-      } catch (e) {
-        console.error("Erro ao carregar dados", e);
+        return JSON.parse(saved);
+      } catch {
+        return initialState;
       }
     }
-  }, []);
+    return initialState;
+  });
+  const [toast, setToast] = useState(null);
+  const [showClearModal, setShowClearModal] = useState(false);
+  const [errorFields, setErrorFields] = useState([]);
 
   // Salvar alterações
   useEffect(() => {

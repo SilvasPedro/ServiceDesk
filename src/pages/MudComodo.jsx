@@ -24,22 +24,20 @@ const initialState = {
 };
 
 export function MudComodo() {
-  const [formData, setFormData] = useState(initialState);
-  const [toast, setToast] = useState(null);
-  const [showClearModal, setShowClearModal] = useState(false);
-  const [errorFields, setErrorFields] = useState([]);
-
-  // Carrega do LocalStorage[cite: 5]
-  useEffect(() => {
+  const [formData, setFormData] = useState(() => {
     const saved = localStorage.getItem('osMudancaComodoData');
     if (saved) {
       try {
-        setFormData(JSON.parse(saved));
-      } catch (e) {
-        console.error("Erro ao carregar dados", e);
+        return JSON.parse(saved);
+      } catch {
+        return initialState;
       }
     }
-  }, []);
+    return initialState;
+  });
+  const [toast, setToast] = useState(null);
+  const [showClearModal, setShowClearModal] = useState(false);
+  const [errorFields, setErrorFields] = useState([]);
 
   // Salva no LocalStorage[cite: 5]
   useEffect(() => {
@@ -122,7 +120,7 @@ export function MudComodo() {
     const dataAgend = formatDate(formData.dataAgendamento);
     let periodoFmt = formData.periodo === 'Após' ? `Após (${formData.horarioApos})` : formData.periodo;
 
-    let infoCusto = "";
+    let infoCusto;
     if (formData.isentoCusto === 'Sim') {
         let motivo = formData.motivoIsencao === 'Outro' ? formData.motivoOutroTexto : formData.motivoIsencao;
         infoCusto = `ISENTO (Motivo: ${motivo})`;
