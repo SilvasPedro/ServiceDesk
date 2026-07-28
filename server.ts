@@ -6,7 +6,7 @@ import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
 import fs from "fs";
 
-const upload = multer({ dest: "uploads/" });
+const upload = multer({ storage: multer.memoryStorage() });
 
 function getAi() {
   const key = process.env.GEMINI_API_KEY;
@@ -39,9 +39,8 @@ async function startServer() {
          return res.status(500).json({ error: "A chave da API do Gemini não está configurada." });
       }
 
-      const filePath = req.file.path;
-      const fileData = fs.readFileSync(filePath);
       const mimeType = req.file.mimetype || "image/png";
+      const base64Data = req.file.buffer.toString("base64");
 
       const prompt = `Analise esta imagem de uma escala/tabela de técnicos.
 Extraia os dados dos técnicos divididos em MOTO e CARRO.
@@ -77,7 +76,7 @@ Se não encontrar dados de alguma categoria, retorne o array correspondente vazi
               { text: prompt },
               {
                 inlineData: {
-                  data: fileData.toString("base64"),
+                  data: base64Data,
                   mimeType: mimeType,
                 },
               },
@@ -90,11 +89,6 @@ Se não encontrar dados de alguma categoria, retorne o array correspondente vazi
       });
 
       let jsonStr = (response.text || "{}").trim();
-      
-      // Cleanup the uploaded file
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
       
       // Sanitize JSON response string in case markdown codeblocks were returned
       jsonStr = jsonStr.replace(/^```(json)?/gi, "").replace(/```$/g, "").trim();
@@ -123,9 +117,6 @@ Se não encontrar dados de alguma categoria, retorne o array correspondente vazi
     } catch (error: any) {
       console.error("Erro na extração:", error);
       res.status(500).json({ error: "Falha ao processar a imagem.", details: error.message || String(error) });
-      if (req.file && fs.existsSync(req.file.path)) {
-        fs.unlinkSync(req.file.path);
-      }
     }
   });
 
