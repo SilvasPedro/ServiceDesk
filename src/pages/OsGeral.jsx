@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Calendar, User, FileText, Cpu, Clock, 
-  ShieldCheck, Copy, Trash2, AlertTriangle, ChevronDown, Info
+  ShieldCheck, Copy, Trash2, Info
 } from 'lucide-react';
+import { TechniciansRegion } from '../components/TechniciansRegion';
 
 const initialState = {
   dataAgendamento: '',
@@ -46,7 +47,6 @@ export function OsGeral() {
 
     return loadedData; // Retorna os dados preenchidos ANTES da tela piscar
   });
-  const [showRisk, setShowRisk] = useState(false);
   const [toast, setToast] = useState(null);
   const [showClearModal, setShowClearModal] = useState(false);
   const [errorFields, setErrorFields] = useState([]);
@@ -208,38 +208,8 @@ ${scriptExcecao}`.trim();
         </span>
       </div>
 
-      <div className="bg-white rounded-xl overflow-hidden border border-red-200 shadow-sm">
-        <button 
-          onClick={() => setShowRisk(!showRisk)} 
-          className="w-full flex justify-between items-center p-4 bg-red-50 hover:bg-red-100 text-red-700 transition"
-        >
-          <span className="font-bold flex items-center gap-2 text-sm">
-            <AlertTriangle size={16} /> Visualizar Bairros de Risco
-          </span>
-          <ChevronDown size={16} className={`transition-transform duration-300 ${showRisk ? 'rotate-180' : ''}`} />
-        </button>
-        <AnimatePresence>
-          {showRisk && (
-            <motion.div 
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden"
-            >
-              <div className="p-5 border-t border-red-200 grid grid-cols-1 md:grid-cols-2 gap-6 text-sm bg-red-50/50">
-                <div>
-                  <strong className="block text-red-800 mb-1">Itanhaém:</strong>
-                  <span className="text-slate-700">Guapurá</span>
-                </div>
-                <div>
-                  <strong className="block text-red-800 mb-1">Praia Grande:</strong>
-                  <span className="text-slate-700">Jardim Trevo | Jardim Aclimação | Ribeirópolis | Balneário Japurá | Esmeralda | Parque das Américas | Samambaia | Melvi</span>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+      {/* TÉCNICOS DA REGIÃO (ROTA DIÁRIA) */}
+      <TechniciansRegion />
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-6">
         

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   User, Headset, Copy, Trash2, AlertTriangle, Info, MonitorPlay, Calendar, Settings
 } from 'lucide-react';
+import { TechniciansRegion } from '../components/TechniciansRegion';
 
 const initialState = {
   dataAgendamento: '',
@@ -191,6 +192,9 @@ ${scriptExcecao}`.trim();
           {new Date().toLocaleDateString('pt-BR')}
         </div>
       </div>
+
+      {/* TÉCNICOS DA REGIÃO (ROTA DIÁRIA) */}
+      <TechniciansRegion />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         

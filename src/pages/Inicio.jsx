@@ -1,6 +1,18 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { UploadCloud, FileImage, Loader2, Users, MapPin, FileText, AlertTriangle } from 'lucide-react';
+import { 
+  UploadCloud, 
+  FileImage, 
+  Loader2, 
+  Bike, 
+  Car, 
+  MapPin, 
+  Building2, 
+  FileText, 
+  AlertTriangle, 
+  Search, 
+  Sparkles
+} from 'lucide-react';
 import { doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
@@ -8,24 +20,33 @@ export function Inicio() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [technicians, setTechnicians] = useState([]);
   const [error, setError] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState('all'); // 'all', 'moto', 'car'
+
+  // Firestore state for technicians
+  const [data, setData] = useState({ moto: [], car: [] });
 
   useEffect(() => {
     const unsub = onSnapshot(doc(db, "techniciansList", "current"), (docSnap) => {
       if (docSnap.exists()) {
-        const data = docSnap.data();
-        if (data.technicians) {
-          setTechnicians(data.technicians);
-        }
+        const docData = docSnap.data();
+        setData({
+          moto: Array.isArray(docData.moto) ? docData.moto : [],
+          car: Array.isArray(docData.car) ? docData.car : []
+        });
       }
     });
     return () => unsub();
   }, []);
 
   const handleFileChange = (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
     if (file) {
+      if (!file.type.startsWith('image/')) {
+        setError("Por favor, selecione um arquivo de imagem válido (PNG, JPG, etc).");
+        return;
+      }
       setSelectedFile(file);
       setError(null);
       
@@ -37,15 +58,34 @@ export function Inicio() {
     }
   };
 
+  const handleDrop = (e) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      setSelectedFile(file);
+      setError(null);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewUrl(reader.result);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setError("Por favor, solte apenas arquivos de imagem.");
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+  };
+
   const handleUpload = async () => {
     if (!selectedFile) {
-      setError("Por favor, selecione uma imagem primeiro.");
+      setError("Por favor, selecione uma imagem de escala primeiro.");
       return;
     }
 
     setIsUploading(true);
     setError(null);
-    setTechnicians([]);
 
     const formData = new FormData();
     formData.append('image', selectedFile);
@@ -58,17 +98,25 @@ export function Inicio() {
 
       if (!response.ok) {
         const errData = await response.json();
-        throw new Error(errData.error || "Falha ao processar a imagem");
+        const msg = errData.details ? `${errData.error} (${errData.details})` : (errData.error || "Falha ao processar a imagem");
+        throw new Error(msg);
       }
 
-      const data = await response.json();
-      if (data && data.technicians) {
-        await setDoc(doc(db, "techniciansList", "current"), { technicians: data.technicians });
-        setSelectedFile(null);
-        setPreviewUrl(null);
-      } else {
-        setError("Nenhuma informação de técnico encontrada na imagem.");
-      }
+      const extractedData = await response.json();
+
+      const sanitizedData = {
+        moto: Array.isArray(extractedData.moto) ? extractedData.moto : [],
+        car: Array.isArray(extractedData.car) ? extractedData.car : []
+      };
+
+      // Save extracted data to Firestore including updatedAt timestamp
+      await setDoc(doc(db, "techniciansList", "current"), {
+        ...sanitizedData,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+
+      setSelectedFile(null);
+      setPreviewUrl(null);
     } catch (err) {
       console.error(err);
       setError(err.message || "Erro ao conectar com o servidor.");
@@ -77,37 +125,62 @@ export function Inicio() {
     }
   };
 
+  // Filter helper
+  const filterList = (list) => {
+    if (!searchQuery.trim()) return list;
+    const q = searchQuery.toLowerCase();
+    return list.filter(item => 
+      (item.name && item.name.toLowerCase().includes(q)) ||
+      (item.region && item.region.toLowerCase().includes(q)) ||
+      (item.city && item.city.toLowerCase().includes(q)) ||
+      (item.obs && item.obs.toLowerCase().includes(q))
+    );
+  };
+
+  const filteredMoto = filterList(data.moto);
+  const filteredCar = filterList(data.car);
+  const totalCount = data.moto.length + data.car.length;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      className="max-w-6xl mx-auto space-y-6 pb-20"
+      className="max-w-7xl mx-auto space-y-5 pb-20 px-4 sm:px-6"
     >
-      <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-        <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
-          <div className="bg-red-100 p-2 rounded-lg">
-            <Users className="w-6 h-6 text-red-600" />
+      {/* Header Banner */}
+      <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+        <h1 className="text-xl sm:text-2xl font-extrabold text-slate-800 flex items-center gap-3">
+          <div className="bg-red-100 p-2 rounded-xl text-red-600">
+            <Sparkles className="w-5 h-5" />
           </div>
-          Disponibilidade de Técnicos
-        </h2>
+          Análise e Escala de Técnicos
+        </h1>
+        <p className="text-slate-500 text-xs sm:text-sm mt-1">
+          Envie a imagem da tabela de escala para extrair e organizar automaticamente os técnicos em MOTO e CARRO.
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        {/* Upload Section */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border-t-4 border-t-red-500 border-x border-b border-slate-200 lg:col-span-4 flex flex-col h-full">
-          <h2 className="text-lg font-bold border-b pb-3 mb-4 text-slate-700 flex items-center gap-2">
-            <UploadCloud className="w-5 h-5 text-red-600" /> 
-            Upload de Escala
-          </h2>
-          
-          <div className="space-y-4 flex-grow flex flex-col">
-            <p className="text-sm text-slate-600">
-              Faça upload de uma imagem contendo a escala ou disponibilidade dos técnicos para extrair as informações automaticamente.
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+        {/* Upload Panel (Compact) */}
+        <div className="lg:col-span-4 bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between space-y-4">
+          <div>
+            <div className="flex items-center gap-2 border-b border-slate-100 pb-2.5 mb-3">
+              <UploadCloud className="w-4 h-4 text-red-600" />
+              <h2 className="text-sm font-bold text-slate-800">Enviar Imagem da Escala</h2>
+            </div>
+
+            <p className="text-xs text-slate-500 mb-3 leading-relaxed">
+              Arraste ou selecione a imagem da escala para atualizar a lista automaticamente.
             </p>
-            
-            <div className="mt-4 flex-grow border-2 border-dashed border-slate-300 rounded-xl bg-slate-50 hover:bg-slate-100 transition flex flex-col items-center justify-center p-6 relative overflow-hidden group">
+
+            <div 
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              className={`border-2 border-dashed rounded-xl p-4 transition flex flex-col items-center justify-center relative overflow-hidden group min-h-[140px] ${
+                previewUrl ? 'border-red-400 bg-red-50/20' : 'border-slate-300 bg-slate-50 hover:border-red-400 hover:bg-slate-100/80'
+              }`}
+            >
               <input 
                 type="file" 
                 accept="image/*" 
@@ -115,109 +188,269 @@ export function Inicio() {
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                 disabled={isUploading}
               />
-              
+
               {previewUrl ? (
-                <div className="w-full h-full flex flex-col items-center justify-center">
-                  <div className="relative w-full max-h-48 rounded-lg overflow-hidden mb-3">
-                     <img src={previewUrl} alt="Preview" className="w-full h-full object-contain" />
+                <div className="w-full flex flex-col items-center justify-center space-y-2">
+                  <div className="relative w-full max-h-40 rounded-lg overflow-hidden border border-slate-200 shadow-xs bg-black/5">
+                    <img src={previewUrl} alt="Preview da escala" className="w-full h-full object-contain max-h-36" />
                   </div>
-                  <span className="text-xs font-medium text-slate-500 bg-white px-2 py-1 rounded shadow-sm">
-                    {selectedFile.name}
+                  <span className="text-[11px] font-semibold text-slate-600 bg-white px-2 py-0.5 rounded shadow-xs border border-slate-200 truncate max-w-full">
+                    {selectedFile?.name}
                   </span>
                 </div>
               ) : (
-                <div className="text-center">
-                  <FileImage className="w-10 h-10 text-slate-400 mx-auto mb-2 group-hover:text-red-500 transition-colors" />
-                  <p className="text-sm font-medium text-slate-600">Clique ou arraste uma imagem</p>
-                  <p className="text-xs text-slate-400 mt-1">PNG, JPG, JPEG</p>
+                <div className="text-center space-y-1.5 p-2">
+                  <div className="w-10 h-10 rounded-full bg-red-50 text-red-600 flex items-center justify-center mx-auto group-hover:scale-105 transition-transform">
+                    <FileImage className="w-5 h-5" />
+                  </div>
+                  <p className="text-xs font-semibold text-slate-700">Clique ou arraste a imagem</p>
+                  <p className="text-[10px] text-slate-400">PNG, JPG, WEBP</p>
                 </div>
               )}
             </div>
 
             {error && (
-              <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg border border-red-100 flex items-start gap-2">
-                <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                <p>{error}</p>
-              </div>
+              <motion.div 
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-3 bg-red-50 text-red-700 text-xs p-2.5 rounded-xl border border-red-200 flex items-start gap-2"
+              >
+                <AlertTriangle className="w-4 h-4 text-red-600 mt-0.5 shrink-0" />
+                <p className="font-medium text-[11px]">{error}</p>
+              </motion.div>
             )}
+          </div>
 
+          <div>
             <button 
               onClick={handleUpload}
               disabled={!selectedFile || isUploading}
-              className={`w-full py-3 px-4 rounded-xl font-bold flex justify-center items-center gap-2 transition-all shadow-sm ${
+              className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs flex justify-center items-center gap-2 transition-all shadow-xs ${
                 !selectedFile || isUploading
-                  ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                  : 'bg-red-600 hover:bg-red-700 text-white hover:shadow'
+                  ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                  : 'bg-red-600 hover:bg-red-700 text-white shadow-sm hover:shadow active:scale-[0.99]'
               }`}
             >
               {isUploading ? (
                 <>
-                  <Loader2 className="w-5 h-5 animate-spin" /> Processando Imagem...
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
+                  Analisando Escala...
                 </>
               ) : (
                 <>
-                  <UploadCloud className="w-5 h-5" /> Analisar Imagem
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Analisar e Extrair Dados
                 </>
               )}
             </button>
           </div>
         </div>
 
-        {/* Results Section */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border-t-4 border-t-red-500 border-x border-b border-slate-200 lg:col-span-8 flex flex-col h-full min-h-[400px]">
-          <h2 className="text-lg font-bold border-b pb-3 mb-4 text-slate-700 flex items-center gap-2">
-            <FileText className="w-5 h-5 text-red-500" /> 
-            Técnicos Disponíveis
-          </h2>
-          
-          <div className="flex-grow flex flex-col">
-            {technicians.length > 0 ? (
-              <div className="overflow-x-auto rounded-xl border border-slate-200">
-                <table className="w-full text-left text-sm text-slate-600">
-                  <thead className="bg-slate-50 text-slate-700 text-xs uppercase font-semibold">
-                    <tr>
-                      <th className="px-4 py-3 border-b border-slate-200">Técnico</th>
-                      <th className="px-4 py-3 border-b border-slate-200">Região</th>
-                      <th className="px-4 py-3 border-b border-slate-200">Anotações</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {technicians.map((tech, idx) => (
-                      <motion.tr 
-                        key={idx}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: idx * 0.05 }}
-                        className="hover:bg-slate-50 transition-colors"
-                      >
-                        <td className="px-4 py-3 font-medium text-slate-800 flex items-center gap-2">
-                           <div className="w-8 h-8 rounded-full bg-red-100 text-red-700 flex items-center justify-center font-bold text-xs">
-                             {tech.name.substring(0,2).toUpperCase()}
-                           </div>
-                           {tech.name}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 px-2.5 py-1 rounded-md text-xs font-medium border border-slate-200">
-                            <MapPin className="w-3 h-3 text-slate-500" /> {tech.region || "-"}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-slate-500">{tech.notes || "-"}</td>
-                      </motion.tr>
-                    ))}
-                  </tbody>
-                </table>
+        {/* Extracted Data Display Section */}
+        <div className="lg:col-span-8 bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col min-h-[480px]">
+          <div className="flex-grow flex flex-col space-y-4">
+            {/* Header Controls */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-red-600" />
+                <h2 className="text-sm font-bold text-slate-800">
+                  Técnicos Extraídos ({totalCount})
+                </h2>
+              </div>
+
+              {/* Filter and Search */}
+              {totalCount > 0 && (
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                    <input 
+                      type="text" 
+                      placeholder="Buscar por nome, cidade..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-8 pr-3 py-1 bg-slate-50 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 text-slate-700 w-44 sm:w-56"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Subtabs for filtering Moto / Carro */}
+            {totalCount > 0 && (
+              <div className="flex items-center gap-2 pt-0.5">
+                <button
+                  onClick={() => setActiveTab('all')}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
+                    activeTab === 'all'
+                      ? 'bg-slate-800 text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  Todos ({totalCount})
+                </button>
+                <button
+                  onClick={() => setActiveTab('moto')}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
+                    activeTab === 'moto'
+                      ? 'bg-amber-600 text-white shadow-xs'
+                      : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                  }`}
+                >
+                  <Bike className="w-3.5 h-3.5" />
+                  MOTO ({data.moto.length})
+                </button>
+                <button
+                  onClick={() => setActiveTab('car')}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
+                    activeTab === 'car'
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                  }`}
+                >
+                  <Car className="w-3.5 h-3.5" />
+                  CARRO ({data.car.length})
+                </button>
+              </div>
+            )}
+
+            {/* Data Content */}
+            {totalCount === 0 ? (
+              <div className="flex-grow flex flex-col items-center justify-center text-slate-400 py-12 px-4 text-center">
+                <div className="w-14 h-14 rounded-full bg-slate-100 text-slate-300 flex items-center justify-center mb-3">
+                  <FileText className="w-7 h-7" />
+                </div>
+                <h3 className="text-slate-600 font-bold text-sm">Nenhum técnico extraído ainda</h3>
+                <p className="text-slate-400 text-xs mt-1 max-w-sm">
+                  Envie a imagem da escala no painel para processar e visualizar os dados dos técnicos divididos em MOTO e CARRO.
+                </p>
               </div>
             ) : (
-              <div className="flex-grow flex flex-col items-center justify-center text-slate-400">
-                <Users className="w-16 h-16 mb-4 text-slate-200" />
-                <p className="text-lg font-medium text-slate-500">Nenhum dado extraído</p>
-                <p className="text-sm">Faça o upload de uma imagem com a escala para visualizar os técnicos aqui.</p>
+              <div className="space-y-5 flex-grow overflow-y-auto max-h-[600px] pr-1">
+                {/* MOTO SECTION */}
+                {(activeTab === 'all' || activeTab === 'moto') && (
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between bg-amber-50 border border-amber-200/80 p-2 rounded-xl text-amber-900">
+                      <div className="flex items-center gap-2 font-bold text-xs uppercase tracking-wider">
+                        <div className="bg-amber-500 text-white p-1 rounded-md">
+                          <Bike className="w-3.5 h-3.5" />
+                        </div>
+                        Categoria MOTO ({filteredMoto.length})
+                      </div>
+                    </div>
+
+                    {filteredMoto.length === 0 ? (
+                      <p className="text-xs text-slate-400 italic px-2 py-1">
+                        Nenhum técnico de moto encontrado{searchQuery ? ' para esta busca' : ''}.
+                      </p>
+                    ) : (
+                      <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-xs">
+                        <table className="w-full text-left text-xs text-slate-600">
+                          <thead className="bg-slate-50 text-slate-700 uppercase font-semibold text-[11px] border-b border-slate-200">
+                            <tr>
+                              <th className="px-3.5 py-2">Técnico</th>
+                              <th className="px-3.5 py-2">Região / Setor</th>
+                              <th className="px-3.5 py-2">Cidade</th>
+                              <th className="px-3.5 py-2">Observações</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 bg-white">
+                            {filteredMoto.map((tech, idx) => (
+                              <tr key={idx} className="hover:bg-amber-50/30 transition-colors">
+                                <td className="px-3.5 py-2.5 font-bold text-slate-800 flex items-center gap-2">
+                                  <div className="w-5 h-5 rounded-full bg-amber-100 text-amber-800 font-extrabold flex items-center justify-center text-[9px]">
+                                    {(tech.name || 'T').substring(0, 2).toUpperCase()}
+                                  </div>
+                                  {tech.name || 'Sem nome'}
+                                </td>
+                                <td className="px-3.5 py-2.5">
+                                  <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[11px] font-medium">
+                                    <MapPin className="w-3 h-3 text-slate-400" />
+                                    {tech.region || '-'}
+                                  </span>
+                                </td>
+                                <td className="px-3.5 py-2.5">
+                                  <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[11px] font-medium">
+                                    <Building2 className="w-3 h-3 text-slate-400" />
+                                    {tech.city || '-'}
+                                  </span>
+                                </td>
+                                <td className="px-3.5 py-2.5 text-slate-500 max-w-xs truncate" title={tech.obs}>
+                                  {tech.obs || '-'}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* CARRO SECTION */}
+                {(activeTab === 'all' || activeTab === 'car') && (
+                  <div className="space-y-2.5 pt-1">
+                    <div className="flex items-center justify-between bg-blue-50 border border-blue-200/80 p-2 rounded-xl text-blue-900">
+                      <div className="flex items-center gap-2 font-bold text-xs uppercase tracking-wider">
+                        <div className="bg-blue-600 text-white p-1 rounded-md">
+                          <Car className="w-3.5 h-3.5" />
+                        </div>
+                        Categoria CARRO ({filteredCar.length})
+                      </div>
+                    </div>
+
+                    {filteredCar.length === 0 ? (
+                      <p className="text-xs text-slate-400 italic px-2 py-1">
+                        Nenhum técnico de carro encontrado{searchQuery ? ' para esta busca' : ''}.
+                      </p>
+                    ) : (
+                      <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-xs">
+                        <table className="w-full text-left text-xs text-slate-600">
+                          <thead className="bg-slate-50 text-slate-700 uppercase font-semibold text-[11px] border-b border-slate-200">
+                            <tr>
+                              <th className="px-3.5 py-2">Técnico</th>
+                              <th className="px-3.5 py-2">Região / Setor</th>
+                              <th className="px-3.5 py-2">Cidade</th>
+                              <th className="px-3.5 py-2">Observações</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 bg-white">
+                            {filteredCar.map((tech, idx) => (
+                              <tr key={idx} className="hover:bg-blue-50/30 transition-colors">
+                                <td className="px-3.5 py-2.5 font-bold text-slate-800 flex items-center gap-2">
+                                  <div className="w-5 h-5 rounded-full bg-blue-100 text-blue-800 font-extrabold flex items-center justify-center text-[9px]">
+                                    {(tech.name || 'T').substring(0, 2).toUpperCase()}
+                                  </div>
+                                  {tech.name || 'Sem nome'}
+                                </td>
+                                <td className="px-3.5 py-2.5">
+                                  <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[11px] font-medium">
+                                    <MapPin className="w-3 h-3 text-slate-400" />
+                                    {tech.region || '-'}
+                                  </span>
+                                </td>
+                                <td className="px-3.5 py-2.5">
+                                  <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[11px] font-medium">
+                                    <Building2 className="w-3 h-3 text-slate-400" />
+                                    {tech.city || '-'}
+                                  </span>
+                                </td>
+                                <td className="px-3.5 py-2.5 text-slate-500 max-w-xs truncate" title={tech.obs}>
+                                  {tech.obs || '-'}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
         </div>
-
       </div>
     </motion.div>
   );
 }
+

@@ -13,7 +13,14 @@ function getAi() {
   if (!key) {
     throw new Error("GEMINI_API_KEY não configurada.");
   }
-  return new GoogleGenAI({ apiKey: key });
+  return new GoogleGenAI({
+    apiKey: key,
+    httpOptions: {
+      headers: {
+        'User-Agent': 'aistudio-build',
+      },
+    },
+  });
 }
 
 async function startServer() {
@@ -34,25 +41,35 @@ async function startServer() {
 
       const filePath = req.file.path;
       const fileData = fs.readFileSync(filePath);
-      const mimeType = req.file.mimetype;
+      const mimeType = req.file.mimetype || "image/png";
 
-      const prompt = `Analise esta imagem e extraia as informações dos técnicos disponíveis.
-Retorne um JSON estrito no seguinte formato, e sem texto adicional:
+      const prompt = `Analise esta imagem de uma escala/tabela de técnicos.
+Extraia os dados dos técnicos divididos em MOTO e CARRO.
+Retorne APENAS um objeto JSON no seguinte formato exato, sem textos explicativos adicionais ou marcações fora do JSON:
+
 {
-  "technicians": [
+  "moto": [
     {
-      "name": "Nome do técnico",
-      "region": "Região disponível",
-      "notes": "Qualquer anotação ou detalhe adicional"
+      "name": "Nome do Técnico",
+      "region": "Região/Setor",
+      "city": "Cidade",
+      "obs": "Observações (ex: horário, disponibilidade, restrições)"
+    }
+  ],
+  "car": [
+    {
+      "name": "Nome do Técnico",
+      "region": "Região/Setor",
+      "city": "Cidade",
+      "obs": "Observações"
     }
   ]
 }
-Se não for possível encontrar essas informações, retorne {"technicians": []}.
-O retorno DEVE ser apenas o JSON, sem formatação de código markdown (sem \`\`\`json no início/fim).`;
+Se não encontrar dados de alguma categoria, retorne o array correspondente vazio [].`;
 
       const aiClient = getAi();
       const response = await aiClient.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-3.6-flash",
         contents: [
           {
             role: "user",
@@ -72,25 +89,40 @@ O retorno DEVE ser apenas o JSON, sem formatação de código markdown (sem \`\`
         }
       });
 
-      let jsonStr = response.text || "{}";
+      let jsonStr = (response.text || "{}").trim();
       
       // Cleanup the uploaded file
-      fs.unlinkSync(filePath);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
       
-      let data = { technicians: [] };
+      // Sanitize JSON response string in case markdown codeblocks were returned
+      jsonStr = jsonStr.replace(/^```(json)?/gi, "").replace(/```$/g, "").trim();
+
+      let data = { moto: [], car: [] };
       try {
-          data = JSON.parse(jsonStr);
+        data = JSON.parse(jsonStr);
+        if (!data.moto) data.moto = [];
+        if (!data.car) data.car = [];
       } catch (parseError) {
-          console.error("Error parsing JSON:", parseError);
-          // try to clean up markdown if present just in case
-          jsonStr = jsonStr.replace(/^```json/g, "").replace(/```$/g, "").trim();
-          data = JSON.parse(jsonStr);
+        console.error("Error parsing JSON from Gemini:", parseError, "Raw output:", jsonStr);
+        // Try regex extraction of JSON object
+        const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          try {
+            data = JSON.parse(jsonMatch[0]);
+            if (!data.moto) data.moto = [];
+            if (!data.car) data.car = [];
+          } catch (e) {
+            console.error("Regex JSON parse failed:", e);
+          }
+        }
       }
 
       res.json(data);
     } catch (error: any) {
       console.error("Erro na extração:", error);
-      res.status(500).json({ error: "Falha ao processar a imagem.", details: error.message });
+      res.status(500).json({ error: "Falha ao processar a imagem.", details: error.message || String(error) });
       if (req.file && fs.existsSync(req.file.path)) {
         fs.unlinkSync(req.file.path);
       }

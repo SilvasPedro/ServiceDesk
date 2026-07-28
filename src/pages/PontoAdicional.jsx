@@ -4,6 +4,7 @@ import {
   Calendar, User, CalendarClock, Settings, ClipboardCheck, ShieldCheck, 
   Copy, Trash2, AlertTriangle, Info 
 } from 'lucide-react';
+import { TechniciansRegion } from '../components/TechniciansRegion';
 
 const initialState = {
   dataAgendamento: '',
@@ -238,6 +239,9 @@ Atendente: ${formData.nomeAtendente}
           {new Date().toLocaleDateString('pt-BR')}
         </div>
       </div>
+
+      {/* TÉCNICOS DA REGIÃO (ROTA DIÁRIA) */}
+      <TechniciansRegion />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         

@@ -4,6 +4,7 @@ import {
   CalendarDays, MapPin, FileCheck, PackageCheck, 
   ShieldCheck, Copy, Trash2, AlertTriangle, Info
 } from 'lucide-react';
+import { TechniciansRegion } from '../components/TechniciansRegion';
 
 const initialState = {
   podeAdiantar: 'Não',
@@ -164,6 +165,9 @@ Atendente: ${formData.nomeAtendente}`.trim();
           <CalendarDays size={14} className="text-primary" /> Hoje
         </span>
       </div>
+
+      {/* TÉCNICOS DA REGIÃO (ROTA DIÁRIA) */}
+      <TechniciansRegion />
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
         

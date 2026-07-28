@@ -4,6 +4,7 @@ import {
   CalendarClock, User, FileText, ShieldCheck, 
   Copy, Trash2, Info 
 } from 'lucide-react';
+import { TechniciansRegion } from '../components/TechniciansRegion';
 
 const initialState = {
   dataAgendamento: '',
@@ -195,6 +196,9 @@ Atendente: ${formData.nomeAtendente}`.trim();
           <CalendarClock size={14} className="text-primary" /> Hoje
         </span>
       </div>
+
+      {/* TÉCNICOS DA REGIÃO (ROTA DIÁRIA) */}
+      <TechniciansRegion />
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
         
